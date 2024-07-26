@@ -1,11 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('api')
+@Controller('/api')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('test')
+  @Get('/max-balance-change')
   async getMaxBalanceChange() {
     const lastBlockNumber = await this.appService.getLastBlockNumber();
     const balances: { [key: string]: bigint } = {};
