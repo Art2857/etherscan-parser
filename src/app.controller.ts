@@ -10,22 +10,18 @@ export class AppController {
     const lastBlockNumber = await this.appService.getLastBlockNumber();
     const balances: { [key: string]: bigint } = {};
 
-    await Promise.all(
-      Array.from({ length: 100 }, (_, index) => lastBlockNumber - index).map(
-        async (blockNumber) => {
-          const transactions =
-            await this.appService.getBlockTransactions(blockNumber);
+    for (let i = lastBlockNumber; i > lastBlockNumber - 100; i--) {
+      const transactions = await this.appService.getBlockTransactions(i);
 
-          transactions.forEach((tx) => {
-            const value = BigInt(tx.value);
-            if (!balances[tx.from]) balances[tx.from] = BigInt(0);
-            if (!balances[tx.to]) balances[tx.to] = BigInt(0);
-            balances[tx.from] -= value;
-            balances[tx.to] += value;
-          });
-        },
-      ),
-    );
+      transactions.forEach((tx) => {
+        const value = BigInt(tx.value);
+        console.log(tx.from, tx.to, value);
+        if (!balances[tx.from]) balances[tx.from] = BigInt(0);
+        if (!balances[tx.to]) balances[tx.to] = BigInt(0);
+        balances[tx.from] -= value;
+        balances[tx.to] += value;
+      });
+    }
 
     let maxChangeAddress = null;
     let maxChange: bigint = 0n;
