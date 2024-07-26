@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { BlockchainService } from './blockchain.service';
-import { BlockCacheService } from './block-cache.service';
+import { EtherScanService } from './etherscan.service';
+import { CacheService } from './cache.service';
 
 @Injectable()
 export class SchedulerService implements OnModuleInit {
@@ -9,12 +9,12 @@ export class SchedulerService implements OnModuleInit {
   private readonly requestInterval = 1000 / this.maxRequestsPerSecond;
 
   constructor(
-    private readonly blockchainService: BlockchainService,
-    private readonly cacheService: BlockCacheService,
+    private readonly blockchainService: EtherScanService,
+    private readonly cacheService: CacheService,
   ) {}
 
   onModuleInit() {
-    this.updateBlocks();
+    this.updateBlocks().catch(console.error);
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
@@ -23,20 +23,29 @@ export class SchedulerService implements OnModuleInit {
       return;
     }
 
-    const lastBlockNumber = await this.blockchainService.getLastBlockNumber();
-    this.cacheService.setLastBlockNumber(lastBlockNumber);
+    try {
+      const lastBlockNumber = await this.blockchainService.getLastBlockNumber();
+      this.cacheService.setLastBlockNumber(lastBlockNumber);
 
-    for (let i = lastBlockNumber; i > lastBlockNumber - 100; i--) {
-      if (!this.cacheService.getBlock(i)) {
-        await this.blockchainService.getBlockTransactions(i);
+      for (let i = lastBlockNumber; i > lastBlockNumber - 100; i--) {
+        await this.processBlock(i);
         await this.delayRequest();
       }
-    }
 
-    this.cacheService.updateLastUpdateTime();
+      this.cacheService.updateLastUpdateTime();
+    } catch (error) {
+      console.error('Failed to update blocks:', error.message);
+    }
   }
 
-  private delayRequest() {
+  private async processBlock(blockNumber: number) {
+    const cachedBlock = await this.cacheService.getBlock(blockNumber);
+    if (!cachedBlock) {
+      await this.blockchainService.getBlockTransactions(blockNumber);
+    }
+  }
+
+  private async delayRequest() {
     return new Promise((resolve) => setTimeout(resolve, this.requestInterval));
   }
 }
