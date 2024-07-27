@@ -4,17 +4,30 @@ import { createClient } from 'redis';
 @Injectable()
 export class CacheService implements OnModuleInit {
   private client;
-  private readonly cacheSize = 100;
-  private lastUpdateTime: number = Date.now();
-  private blockKeys: string[] = [];
+  private readonly expirationTime = Number(process.env.EXPIRATION_TIME);
+  private lastUpdateTime: number;
 
   async onModuleInit() {
-    this.client = createClient();
-    await this.client.connect();
+    this.client = createClient({
+      url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+    });
+    console.log(`redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`);
+
+    await this.client.connect({
+      url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+    });
+
+    console.log('Connected to Redis');
+    this.lastUpdateTime = Date.now();
   }
 
   async setLastBlockNumber(number: number): Promise<void> {
-    await this.client.set('lastBlockNumber', number.toString());
+    await this.client.set(
+      'lastBlockNumber',
+      number.toString(),
+      'EX',
+      this.expirationTime,
+    );
   }
 
   async getLastBlockNumber(): Promise<number | null> {
@@ -28,16 +41,7 @@ export class CacheService implements OnModuleInit {
   }): Promise<void> {
     const blockKey = `block:${block.number}`;
     const transactions = JSON.stringify(block.transactions);
-
-    await this.client.set(blockKey, transactions);
-    this.blockKeys.push(blockKey);
-
-    if (this.blockKeys.length > this.cacheSize) {
-      const oldestBlockKey = this.blockKeys.shift();
-      if (oldestBlockKey) {
-        await this.client.del(oldestBlockKey);
-      }
-    }
+    await this.client.set(blockKey, transactions, 'EX', this.expirationTime);
   }
 
   async getBlock(
@@ -48,6 +52,23 @@ export class CacheService implements OnModuleInit {
     return transactions
       ? { number, transactions: JSON.parse(transactions) }
       : undefined;
+  }
+
+  async getLastBlocks(
+    count: number,
+  ): Promise<{ number: number; transactions: any[] }[]> {
+    const keys = await this.client.keys('block:*');
+    const sortedKeys = keys.sort().slice(-count);
+
+    const blocks = await Promise.all(
+      sortedKeys.map(async (key) => {
+        const transactions = await this.client.get(key);
+        const number = parseInt(key.split(':')[1], 10);
+        return { number, transactions: JSON.parse(transactions) };
+      }),
+    );
+
+    return blocks;
   }
 
   shouldUpdateCache(): boolean {

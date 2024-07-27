@@ -5,7 +5,9 @@ import { CacheService } from './cache.service';
 
 @Injectable()
 export class SchedulerService implements OnModuleInit {
-  private readonly maxRequestsPerSecond = 5;
+  private readonly maxRequestsPerSecond = Number(
+    process.env.MAX_REQUESTS_PER_SECOND,
+  );
   private readonly requestInterval = 1000 / this.maxRequestsPerSecond;
 
   constructor(
@@ -17,7 +19,7 @@ export class SchedulerService implements OnModuleInit {
     this.updateBlocks().catch(console.error);
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async updateBlocks() {
     if (!this.cacheService.shouldUpdateCache()) {
       return;

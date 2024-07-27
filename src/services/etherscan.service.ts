@@ -32,6 +32,7 @@ export class EtherScanService {
 
   async getBlockTransactions(blockNumber: number): Promise<any[]> {
     const cachedBlock = await this.cacheService.getBlock(blockNumber);
+
     if (cachedBlock) {
       return cachedBlock.transactions;
     }
@@ -42,8 +43,11 @@ export class EtherScanService {
         `tag=${'0x' + blockNumber.toString(16)}&boolean=true`,
       );
       const response = await this.httpGet(url);
-      const transactions = response.result.transactions;
-      await this.cacheService.addBlock({ number: blockNumber, transactions });
+      const { number, transactions } = response.result;
+      await this.cacheService.addBlock({
+        number: parseInt(number, 16),
+        transactions,
+      });
       return transactions;
     } catch (error) {
       throw new Error(`Failed to fetch block transactions: ${error.message}`);
@@ -56,6 +60,7 @@ export class EtherScanService {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       return await response.json();
     } catch (error) {
       throw new Error(`Failed to fetch: ${error.message}`);

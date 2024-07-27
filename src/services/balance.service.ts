@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { EtherScanService } from './etherscan.service';
+import { CacheService } from './cache.service';
 
 @Injectable()
 export class BalanceService {
-  constructor(private readonly etherscanService: EtherScanService) {}
+  constructor(private readonly cacheService: CacheService) {}
 
   async getMaxBalanceChange(): Promise<{ address: string | null }> {
-    const lastBlockNumber = await this.etherscanService.getLastBlockNumber();
+    const lastBlocks = await this.cacheService.getLastBlocks(100);
+
     const balances = new Map<string, bigint>();
 
-    for (let i = lastBlockNumber; i > lastBlockNumber - 100; i--) {
-      const transactions = await this.etherscanService.getBlockTransactions(i);
-
+    for (const block of lastBlocks) {
+      const transactions = block.transactions;
       for (const tx of transactions) {
         const value = BigInt(tx.value);
         const fromBalance = balances.get(tx.from) ?? 0n;
