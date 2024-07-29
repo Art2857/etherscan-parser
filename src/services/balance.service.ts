@@ -32,6 +32,20 @@ export class BalanceService {
       }
     }
 
+    // const maxChanged = [...balances.entries()].reduce(
+    //   ({ address, change }, [currentAddress, currentChange]) => {
+    //     if (currentChange > change) {
+    //       address = currentAddress;
+    //       change = currentChange;
+    //     }
+    //     return { address, change };
+    //   },
+    //   <{ address: string | null; change: bigint }>{
+    //     address: null,
+    //     change: 0n,
+    //   },
+    // );
+
     return { address: maxChangeAddress };
   }
 }
